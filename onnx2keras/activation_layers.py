@@ -1,4 +1,5 @@
 from tensorflow import keras
+import tensorflow as tf
 import logging
 from .utils import ensure_tf_type, ensure_numpy_type
 
@@ -101,8 +102,16 @@ def convert_hard_sigmoid(node, params, layers, lambda_func, node_name, keras_nam
 
     input_0 = ensure_tf_type(layers[node.input[0]], name="%s_const" % keras_name)
 
-    hard_sigmoid = keras.layers.Activation('hard_sigmoid', name=keras_name)
-    layers[node_name] = hard_sigmoid(input_0)
+    def target_layer(x):
+        x = tf.add(x, 3.0)
+        x = tf.clip_by_value(x, 0.0, 6.0)
+        x = tf.multiply(x, 1.0/6.0)
+        return x
+
+    # hard_sigmoid = keras.layers.Activation('hard_sigmoid', name=keras_name)
+    lambda_layer = keras.layers.Lambda(target_layer, name=keras_name)
+    layers[node_name] = lambda_layer(input_0)
+    lambda_func[keras_name] = target_layer
 
 
 def convert_tanh(node, params, layers, lambda_func, node_name, keras_name):
