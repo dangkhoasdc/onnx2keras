@@ -125,7 +125,11 @@ def onnx_to_keras(onnx_model, input_names,
 
         node_name = str(node.output[0])
         keras_names = []
-        for output_index, output in enumerate(node.output):
+        for output_index, output_name in enumerate(node.output):
+            if "::" in output_name:
+                output = output_name.split("::")[-1]
+            else:
+                output = output_name
             if name_policy == 'short':
                 keras_name = keras_name_i = str(output)[:8]
                 suffix = 1
