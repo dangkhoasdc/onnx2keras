@@ -5,7 +5,8 @@ import onnx
 from onnx2keras import onnx_to_keras, check_torch_keras_error
 
 
-def torch2keras(model: torch.nn.Module, input_variable, verbose=True, change_ordering=False):
+def torch2keras(
+    model: torch.nn.Module, input_variable, verbose=True, change_ordering=False, padding_mode='valid'):
     if isinstance(input_variable, (tuple, list)):
         input_variable = tuple(torch.FloatTensor(var) for var in input_variable)
         input_names = [f'test_in{i}' for i, _ in enumerate(input_variable)]
@@ -18,7 +19,11 @@ def torch2keras(model: torch.nn.Module, input_variable, verbose=True, change_ord
                       output_names=['test_out'])
     temp_f.seek(0)
     onnx_model = onnx.load(temp_f)
-    k_model = onnx_to_keras(onnx_model, input_names, change_ordering=change_ordering)
+    k_model = onnx_to_keras(
+        onnx_model, input_names, 
+        change_ordering=change_ordering,
+        padding_mode=padding_mode
+    )
     return k_model
 
 
@@ -26,7 +31,9 @@ def convert_and_test(model: torch.nn.Module,
                      input_variable,
                      verbose=True,
                      change_ordering=False,
-                     epsilon=1e-5):
-    k_model = torch2keras(model, input_variable, verbose=verbose, change_ordering=change_ordering)
+                     epsilon=1e-5,
+                     padding_mode='valid'):
+    k_model = torch2keras(model, input_variable, verbose=verbose, 
+        change_ordering=change_ordering, padding_mode=padding_mode)
     error = check_torch_keras_error(model, k_model, input_variable, change_ordering=change_ordering, epsilon=epsilon)
     return error

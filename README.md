@@ -9,7 +9,7 @@ ONNX to Keras deep neural network converter.
 
 ## Requirements
 
->= TensorFlow 2.6
+TensorFlow >= 2.6
 
 ## API
 
