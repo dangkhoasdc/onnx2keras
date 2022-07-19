@@ -75,6 +75,7 @@ def convert_conv(node, params, layers, lambda_func, node_name, keras_name):
 
     elif len(W.shape) == 4:  # 2D conv
         logger.debug('2D convolution')
+        logger.debug(f'padding = {padding_mode}')
         if padding_mode == "valid":
             padding = None
             if len(pads) == 2 and (pads[0] > 0 or pads[1] > 0):
@@ -91,6 +92,10 @@ def convert_conv(node, params, layers, lambda_func, node_name, keras_name):
                     data_format='channels_first'
                 )
                 layers[padding_name] = input_0 = padding_layer(input_0)
+        else:
+            # same mode 
+            if len(set(pads)) > 1:
+                raise RuntimeError(f"Not support this padding setting for padding=same : {pads}")
 
         W = W.transpose(2, 3, 1, 0)
         height, width, channels_per_group, out_channels = W.shape

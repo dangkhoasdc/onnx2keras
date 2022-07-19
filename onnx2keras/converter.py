@@ -7,6 +7,8 @@ import logging
 import inspect
 import collections
 from onnx import numpy_helper
+from collections import defaultdict
+
 
 from .layers import AVAILABLE_CONVERTERS
 
@@ -65,6 +67,10 @@ def onnx_to_keras(onnx_model, input_names,
     onnx_inputs = onnx_model.graph.input
     onnx_outputs = [i.name for i in onnx_model.graph.output]
     onnx_nodes = onnx_model.graph.node
+    input_onnx_mapping = defaultdict(list)
+    for node in onnx_nodes:
+        for input_node in node.input:
+            input_onnx_mapping[input_node].append(node)
 
     logger.debug('List input shapes:')
     logger.debug(input_shapes)
@@ -117,8 +123,19 @@ def onnx_to_keras(onnx_model, input_names,
 
     # Convert every operation separable
     node_names = []
+    prev_node = None 
+    skip_padding = False
     for node_index, node in enumerate(onnx_nodes):
         node_type = node.op_type
+        if node_type == 'Pad' and len(input_onnx_mapping[node.output[0]]) == 1:
+            prev_node = node
+            skip_padding = True
+            continue
+        
+        if skip_padding:
+            for idx, input_elem in enumerate(prev_node.input):
+                node.input[idx] = input_elem
+
         node_params = onnx_node_attributes_to_dict(node.attribute)
 
         # Add global converter info:
@@ -195,6 +212,9 @@ def onnx_to_keras(onnx_model, input_names,
             logger.debug('Output TF Layer -> ' + str(layers[keras_names]))
         except KeyError:
             pass
+
+        prev_node = node
+        skip_padding = False
 
     # Check for terminal nodes
     for layer in onnx_outputs:
