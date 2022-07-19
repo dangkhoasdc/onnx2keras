@@ -7,8 +7,13 @@ from test.utils import convert_and_test
 
 
 class LayerTest(nn.Module):
-    def __init__(self, inp, out, kernel_size=3, padding=1, stride=1, bias=False, dilation=1, groups=1):
+    def __init__(self, inp, out, kernel_size=3, padding=1, stride=1, bias=False, dilation=1, groups=1, padding_mode='valid'):
         super(LayerTest, self).__init__()
+        assert padding_mode in ['valid', 'same']
+
+        if padding_mode == 'same':
+            padding = 'same'
+
         self.conv = nn.Conv2d(
             inp, out, kernel_size=kernel_size, padding=padding,
             stride=stride, bias=bias, dilation=dilation, groups=groups
@@ -19,7 +24,7 @@ class LayerTest(nn.Module):
         return x
 
 
-def func(change_ordering, kernel_size, padding, stride, bias, dilation, groups):
+def func(change_ordering, kernel_size, padding, stride, bias, dilation, groups, padding_mode):
     if not tf.test.gpu_device_name() and not change_ordering:
         pytest.skip("Skip! Since tensorflow Conv2D op currently only supports the NHWC tensor format on the CPU")
     if stride > 1 and dilation > 1:
@@ -27,7 +32,7 @@ def func(change_ordering, kernel_size, padding, stride, bias, dilation, groups):
     model = LayerTest(
         groups * 3, groups,
         kernel_size=kernel_size, padding=padding,
-        stride=stride, bias=bias, dilation=dilation, groups=groups)
+        stride=stride, bias=bias, dilation=dilation, groups=groups, padding_mode=padding_mode)
     model.eval()
     input_np = np.random.uniform(0, 1, (1, groups * 3, 224, 224))
     error = convert_and_test(model, input_np, verbose=False, change_ordering=change_ordering)
@@ -40,8 +45,9 @@ def func(change_ordering, kernel_size, padding, stride, bias, dilation, groups):
 @pytest.mark.parametrize('bias', [True, False])
 @pytest.mark.parametrize('dilation', [1, 2, 3])
 @pytest.mark.parametrize('groups', [1, 2, 3])
-def test_conv2d_case1(change_ordering, kernel_size, padding, stride, bias, dilation, groups):
-    func(change_ordering, kernel_size, padding, stride, bias, dilation, groups)
+@pytest.mark.parametrize('padding_mode', ['valid'])
+def test_conv2d_case1(change_ordering, kernel_size, padding, stride, bias, dilation, groups, padding_mode):
+    func(change_ordering, kernel_size, padding, stride, bias, dilation, groups, padding_mode)
 
 
 @pytest.mark.parametrize('change_ordering', [True, False])
@@ -51,5 +57,6 @@ def test_conv2d_case1(change_ordering, kernel_size, padding, stride, bias, dilat
 @pytest.mark.parametrize('bias', [True, False])
 @pytest.mark.parametrize('dilation', [1])
 @pytest.mark.parametrize('groups', [1, 2, 3])
-def test_conv2d_case2(change_ordering, kernel_size, padding, stride, bias, dilation, groups):
-    func(change_ordering, kernel_size, padding, stride, bias, dilation, groups)
+@pytest.mark.parametrize('padding_mode', ['valid'])
+def test_conv2d_case2(change_ordering, kernel_size, padding, stride, bias, dilation, groups, padding_mode):
+    func(change_ordering, kernel_size, padding, stride, bias, dilation, groups, padding_mode)

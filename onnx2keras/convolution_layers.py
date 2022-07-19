@@ -37,8 +37,10 @@ def convert_conv(node, params, layers, lambda_func, node_name, keras_name):
     dilation = params['dilations'][0] if 'dilations' in params else 1
     pads = params['pads'] if 'pads' in params else [0, 0, 0]
     strides = params['strides'] if 'strides' in params else [1, 1, 1]
+    padding_mode = params.get('padding_mode', 'valid')
 
     if len(W.shape) == 5:  # 3D conv
+        assert padding_mode == 'valid'
         logger.debug('3D convolution')
         if pads[0] > 0 or pads[1] > 0 or pads[2] > 0:
             logger.debug('Paddings exist, add ZeroPadding layer')
@@ -177,6 +179,7 @@ def convert_conv(node, params, layers, lambda_func, node_name, keras_name):
             layers[node_name] = conv(input_0)
     else:
         # 1D conv
+        assert padding_mode == 'valid'
         W = W.transpose(2, 1, 0)
         width, channels, n_filters = W.shape
         print(width, channels, n_filters, has_bias)

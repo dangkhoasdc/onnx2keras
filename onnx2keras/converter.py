@@ -37,7 +37,8 @@ def onnx_node_attributes_to_dict(args):
 
 
 def onnx_to_keras(onnx_model, input_names,
-                  input_shapes=None, name_policy=None, verbose=True, change_ordering=False):
+                  input_shapes=None, name_policy=None, verbose=True, 
+                  change_ordering=False, padding_mode='valid'):
     """
     Convert ONNX graph to Keras model format
     :param onnx_model: loaded ONNX model
@@ -46,6 +47,7 @@ def onnx_to_keras(onnx_model, input_names,
     :param name_policy: override layer names. None, "short" or "renumerate" (experimental)
     :param verbose: verbose output
     :param change_ordering: change ordering to HWC (experimental)
+    :param padding_mode: can be 'valid' or 'same'. Default of Pytorch is 'valid'.
     :return: Keras model
     """
     # Use channels first format by default.
@@ -122,6 +124,7 @@ def onnx_to_keras(onnx_model, input_names,
         # Add global converter info:
         node_params['change_ordering'] = change_ordering
         node_params['name_policy'] = name_policy
+        node_params['padding_mode'] = padding_mode
 
         node_name = str(node.output[0])
         keras_names = []
