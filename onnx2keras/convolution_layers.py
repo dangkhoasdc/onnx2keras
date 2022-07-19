@@ -75,22 +75,22 @@ def convert_conv(node, params, layers, lambda_func, node_name, keras_name):
 
     elif len(W.shape) == 4:  # 2D conv
         logger.debug('2D convolution')
+        if padding_mode == "valid":
+            padding = None
+            if len(pads) == 2 and (pads[0] > 0 or pads[1] > 0):
+                padding = (pads[0], pads[1])
+            elif len(pads) == 4 and (pads[0] > 0 or pads[1] > 0 or pads[2] > 0 or pads[3] > 0):
+                padding = ((pads[0], pads[2]), (pads[1], pads[3]))
 
-        padding = None
-        if len(pads) == 2 and (pads[0] > 0 or pads[1] > 0):
-            padding = (pads[0], pads[1])
-        elif len(pads) == 4 and (pads[0] > 0 or pads[1] > 0 or pads[2] > 0 or pads[3] > 0):
-            padding = ((pads[0], pads[2]), (pads[1], pads[3]))
-
-        if padding:
-            logger.debug('Paddings exist, add ZeroPadding layer')
-            padding_name = keras_name + '_pad'
-            padding_layer = keras.layers.ZeroPadding2D(
-                padding=padding,
-                name=padding_name,
-                data_format='channels_first'
-            )
-            layers[padding_name] = input_0 = padding_layer(input_0)
+            if padding:
+                logger.debug('Paddings exist, add ZeroPadding layer')
+                padding_name = keras_name + '_pad'
+                padding_layer = keras.layers.ZeroPadding2D(
+                    padding=padding,
+                    name=padding_name,
+                    data_format='channels_first'
+                )
+                layers[padding_name] = input_0 = padding_layer(input_0)
 
         W = W.transpose(2, 3, 1, 0)
         height, width, channels_per_group, out_channels = W.shape
@@ -107,7 +107,7 @@ def convert_conv(node, params, layers, lambda_func, node_name, keras_name):
             conv = keras.layers.DepthwiseConv2D(
                 kernel_size=(height, width),
                 strides=(strides[0], strides[1]),
-                padding='valid',
+                padding=padding_mode,
                 use_bias=has_bias,
                 activation=None,
                 depth_multiplier=1,
@@ -132,12 +132,12 @@ def convert_conv(node, params, layers, lambda_func, node_name, keras_name):
 
                 def convolve_lambda_biased(i, k, b):
                     import tensorflow as tf
-                    conv = tf.nn.conv2d(i, k, strides=[1, stride_y, stride_x, 1], dilations=[1, dilation, dilation, 1], padding='VALID', data_format='NHWC')
+                    conv = tf.nn.conv2d(i, k, strides=[1, stride_y, stride_x, 1], dilations=[1, dilation, dilation, 1], padding=padding_mode.upper(), data_format='NHWC')
                     return tf.nn.bias_add(conv, b,  data_format='NHWC')
 
                 def convolve_lambda(i, k):
                     import tensorflow as tf
-                    return tf.nn.conv2d(i, k, strides=[1, stride_y, stride_x, 1], dilations=[1, dilation, dilation, 1], padding='VALID', data_format='NHWC')
+                    return tf.nn.conv2d(i, k, strides=[1, stride_y, stride_x, 1], dilations=[1, dilation, dilation, 1], padding=padding_mode.upper(), data_format='NHWC')
 
                 input_groups = tf.split(axis=3, num_or_size_splits=groups, value=x)
                 weight_groups = tf.split(axis=3, num_or_size_splits=groups, value=W)
@@ -167,7 +167,7 @@ def convert_conv(node, params, layers, lambda_func, node_name, keras_name):
                 filters=out_channels,
                 kernel_size=(height, width),
                 strides=(strides[0], strides[1]),
-                padding='valid',
+                padding=padding_mode,
                 weights=weights,
                 use_bias=has_bias,
                 activation=None,
@@ -193,35 +193,12 @@ def convert_conv(node, params, layers, lambda_func, node_name, keras_name):
             import tensorflow as tf
             w = tf.convert_to_tensor(w[0])
             x = tf.transpose(x, [0, 2, 1])
-            x = tf.nn.conv1d(x, w, stride=stride, padding='SAME', data_format='NWC')
+            x = tf.nn.conv1d(x, w, stride=stride, padding='same', data_format='NWC')
             return tf.transpose(x, [0, 2, 1])
 
         lambda_layer = keras.layers.Lambda(target_layer, name=keras_name)
         lambda_layer[keras_name] = target_layer
         layers[node_name] = lambda_layer(input_0)
-
-        # padding_name = keras_name + '_pad'
-        # padding_layer = keras.layers.ZeroPadding1D(
-        #     padding=(pads[0]),
-        #     name=padding_name
-        # )
-        # print(input_0)
-        # layers[node_name] = padding_layer(input_0)
-        # input_0.set_shape(input_0._keras_shape)
-        # print(input_0._keras_shape)
-        # print(input_0, n_filters, width)
-        # conv = keras.layers.Conv1D(
-        #     filters=n_filters,
-        #     kernel_size=width,
-        #     strides=strides[0],
-        #     padding='valid',
-        #     weights=weights,
-        #     use_bias=has_bias,
-        #     activation=None,
-        #     dilation_rate=dilation,
-        #     name=keras_name
-        # )
-        # layers[node_name] = conv(input_0)
 
 
 def convert_convtranspose(node, params, layers,
